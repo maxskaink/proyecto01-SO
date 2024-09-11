@@ -32,12 +32,11 @@ int main(int argc, char *argv[]) {
 #elif _WIN32
 	mkdir(VERSIONS_DIR);
 #endif
-
+list(NULL);
 	// Crea el archivo .versions/versions.db si no existe
 	if (stat(VERSIONS_DB_PATH, &s) != 0) {
 		creat(VERSIONS_DB_PATH, 0755);
 	}
-
 	// Validar argumentos de linea de comandos
 	if (argc == 4
 			&& EQUALS(argv[1], "add")) {

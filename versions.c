@@ -98,6 +98,8 @@ return_code create_version(char * filename, char * comment, file_version * resul
     strncpy(result->comment, comment, sizeof(result->comment) - 1);
     result->comment[sizeof(result->comment) - 1] = '\0';
 	
+	strncpy(result->hash, hash, sizeof(result->hash) - 1);
+	result->hash[sizeof(result->hash) - 1] = '\0';
 	// Llena a estructura result recibida por referencia.
 	// Debe validar:
 	// 1. Que el archivo exista y sea un archivo regular
@@ -117,7 +119,6 @@ return_code add(char * filename, char * comment) {
 	// Si la operacion falla, retorna VERSION_ERROR
 	// create_version(filename, comment, &v)
 	create_version(filename, comment, &v);
-	
 	// 2. Verifica si ya existe una version con el mismo hash
 	// Retorna VERSION_ALREADY_EXISTS si ya existe
 	//version_exists(filename, v.hash)
@@ -127,15 +128,17 @@ return_code add(char * filename, char * comment) {
 	// El nombre del archivo dentro del repositorio es su hash (sin extension)
 	// Retorna VERSION_ERROR si la operacion falla
 	//store_file(filename, v.hash)
-	store_file(filename, v.hash);
+	if( store_file(filename, v.hash) != 1)
+		return VERSION_ERROR;
 	// 4. Agrega un nuevo registro al archivo versions.db
 	// Si no puede adicionar el registro, se debe borrar el archivo almacenado en el paso anterior
 	// Si la operacion falla, retorna VERSION_ERROR
 	//add_new_version(&v)
-	add_new_version(&v);
+	if(add_new_version(&v) != 1)
+		return VERSION_ERROR;
 
 	// Si la operacion es exitosa, retorna VERSION_ADDED
-	return VERSION_ERROR;
+	return VERSION_ADDED;
 }
 
 int add_new_version(file_version * v) {
@@ -150,7 +153,7 @@ int add_new_version(file_version * v) {
 	}
 	fclose(fp);
 	// Adiciona un nuevo registro (estructura) al archivo versions.db
-	return 0;
+	return 1;
 }
 
 
@@ -172,16 +175,15 @@ void list(char * filename) {
 		}
 		//Si el registro corresponde al archivo buscado, imprimir
 		//Muestra los registros cuyo nombre coincide con filename.
-		if(strcmp(r.filename,filename)==0){
-			printf("%d %s %s \n", cont, r.hash, r.comment);
-			cont = cont + 1;
-		}
-		else if(strcmp(filename, NULL) == 0){
+		if(filename == NULL){
 			//Si filename es NULL, muestra todos los registros.
 			printf("%d %s %s \n", cont, r.hash, r.comment);
+			cont = cont + 1;	
+		}else if(strcmp(r.filename,filename)==0){
+			printf("%d %s %s \n", cont, r.hash, r.comment);
 			cont = cont + 1;
-			
 		}
+
 		//Comparacion entre cadenas: strcmp
 	}	
 	fclose(fp);
@@ -210,6 +212,37 @@ char *get_file_hash(char * filename, char * hash) {
 
 int copy(char * source, char * destination) {
 	// Copia el contenido de source a destination (se debe usar open-read-write-close, o fopen-fread-fwrite-fclose)
+	FILE *src, *dest;
+    char buffer[1024];
+    size_t bytesRead;
+
+    // Abre el archivo fuente en modo lectura binaria
+    src = fopen(source, "rb");
+    if (src == NULL)
+        return 0; 
+
+    // Abre el archivo destino en modo escritura binaria
+    dest = fopen(destination, "wb");
+    if (dest == NULL) {
+        fclose(src);
+        return 0; 
+    }
+
+    // Lee del archivo fuente y escribe en el archivo destino
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        if (fwrite(buffer, 1, bytesRead, dest) != bytesRead) {
+            perror("Error al escribir en el archivo destino");
+            fclose(src);
+            fclose(dest);
+            return 0;
+        }
+    }
+
+    // Cierra ambos archivos
+    fclose(src);
+    fclose(dest);
+
+    return 1;
 }
 
 int version_exists(char * filename, char * hash) {
