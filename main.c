@@ -2,6 +2,8 @@
  * @file
  * @brief Sistema de Control de Versiones
  * @author Erwin Meza Vega <emezav@gmail.com>
+ * @author Miguel Calambas
+ * @author Santiago Escandon
  * Sistema de Control de Versiones
  * Uso:
  *      versions add ARCHIVO "Comentario" : Adiciona una version del archivo al repositorio
