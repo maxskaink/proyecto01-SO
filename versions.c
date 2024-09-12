@@ -169,20 +169,26 @@ void list(char * filename) {
 	//Leer hasta el fin del archivo 
 	int cont = 1;
 	while(!feof(fp)){
+		
 		//Realizar una lectura y retornar
 		if(fread(&r, sizeof(file_version), 1, fp) != 1){
 			break;
 		}
-		//Si el registro corresponde al archivo buscado, imprimir
-		//Muestra los registros cuyo nombre coincide con filename.
+
 		if(filename == NULL){
 			//Si filename es NULL, muestra todos los registros.
-			printf("%d %s %s \n", cont, r.hash, r.comment);
-			cont = cont + 1;	
-		}else if(strcmp(r.filename,filename)==0){
-			printf("%d %s %s \n", cont, r.hash, r.comment);
+			printf("%d %s %s  %.5s \n", cont, r.filename, r.comment, r.hash);
 			cont = cont + 1;
+		
+		}else if(strcmp(r.filename,filename)==0){
+			printf("%d %s %s  %.5s \n", cont, r.filename, r.comment, r.hash);
+			cont = cont + 1;
+			return;
 		}
+		//Si el registro corresponde al archivo buscado, imprimir
+		//Muestra los registros cuyo nombre coincide con filename.
+		
+		
 
 		//Comparacion entre cadenas: strcmp
 	}	
@@ -280,9 +286,28 @@ int get(char * filename, int version) {
 
 	file_version r;
 
+	FILE * fp = fopen(".versions/versions.db", "rb");
+
+	if( fp == NULL)
+		return 0;
+	int cont = 1;
+
+	while(!feof(fp)){
+		if(fread(&r, sizeof(file_version), 1, fp) != 1)
+			break;
+		if(strcmp(r.filename,filename)==0){
+			if(cont == version){
+				if(!retrieve_file(r.hash, r.filename));
+					return 1;
+			}
+		}else{
+			cont = cont +1;
+		}		
+	}
+	fclose(fp);
+
 	//1. Abre la BD y busca el registro r que coincide con filename y version
 	//retrieve_file(r.hash, r.filename)
-	return 0;
 }
 
 
