@@ -2,6 +2,8 @@
  * @file
  * @brief Implementacion del API de gestion de versiones
  * @author Erwin Meza Vega <emezav@unicauca.edu.co>
+ * @author Miguel Angel Calambas Vivas <mangelcvivas@unicauca.edu.co>
+ * @author Esteban Santiago Escandon Causaya <estebanescandon@unicauca.edu.co>
  * @copyright MIT License
 */
 
@@ -42,7 +44,7 @@ char *get_file_hash(char * filename, char * hash);
  * @param source Archivo fuente
  * @param destination Destino
  *
- * @return
+ * @return 1 si la operacion es exitosa, 0 en caso contrario.
  */
 int copy(char * source, char * destination);
 
@@ -52,7 +54,7 @@ int copy(char * source, char * destination);
 * @param filename Nombre del archivo
 * @param hash Hash del archivo: nombre del archivo en el repositorio
 *
-* @return
+* @return 1 si la operacion es exitosa, 0 en caso contrario.
 */
 int store_file(char * filename, char * hash);
 
@@ -61,8 +63,8 @@ int store_file(char * filename, char * hash);
 *
 * @param hash Hash del archivo: nombre del archivo en el repositorio
 * @param filename Nombre del archivo
-*
-* @return
+* 
+* @return 1 si la operacion es exitosa, 0 en caso contrario.
 */
 int retrieve_file(char * hash, char * filename);
 
@@ -81,17 +83,18 @@ int add_new_version(file_version * v);
 return_code create_version(char * filename, char * comment, file_version * result) {
 	file_version v;
 	struct stat statbuff;
-
+	// Verifica si el archivo existe y es regular
 	if(stat(filename, &statbuff) < 0)
 		return VERSION_ERROR;
 
 	if( !S_ISREG(statbuff.st_mode) )
 		return VERSION_ERROR;
-		
+	// Obtiene el hash del archivo que sera el nombre dentro del versionado
 	char *hash = get_file_hash(filename, v.hash);
 	if(hash == NULL)
 		return VERSION_ERROR;
 
+	// Llena la estructura result con los datos del archivo
     strncpy(result->filename, filename, sizeof(result->filename) - 1);
     result->filename[sizeof(result->filename) - 1] = '\0'; 
 
@@ -100,12 +103,6 @@ return_code create_version(char * filename, char * comment, file_version * resul
 	
 	strncpy(result->hash, hash, sizeof(result->hash) - 1);
 	result->hash[sizeof(result->hash) - 1] = '\0';
-	// Llena a estructura result recibida por referencia.
-	// Debe validar:
-	// 1. Que el archivo exista y sea un archivo regular
-	// 2. Obtiene y guarda en la estructura el HASH del archivo
-	// Llena todos los atributos de la estructura y retorna VERSION_CREATED
-	// En caso de fallar alguna validacion, retorna VERSION_ERROR
 
 	return VERSION_CREATED;
 
@@ -116,24 +113,15 @@ return_code add(char * filename, char * comment) {
 	file_version v;
 
 	// 1. Crea la nueva version en memoria
-	// Si la operacion falla, retorna VERSION_ERROR
-	// create_version(filename, comment, &v)
+
 	create_version(filename, comment, &v);
 	// 2. Verifica si ya existe una version con el mismo hash
-	// Retorna VERSION_ALREADY_EXISTS si ya existe
-	//version_exists(filename, v.hash)
 	if(version_exists(filename, v.hash) == 1)
 		return VERSION_ALREADY_EXISTS;
 	// 3. Almacena el archivo en el repositorio.
-	// El nombre del archivo dentro del repositorio es su hash (sin extension)
-	// Retorna VERSION_ERROR si la operacion falla
-	//store_file(filename, v.hash)
 	if( store_file(filename, v.hash) != 1)
 		return VERSION_ERROR;
 	// 4. Agrega un nuevo registro al archivo versions.db
-	// Si no puede adicionar el registro, se debe borrar el archivo almacenado en el paso anterior
-	// Si la operacion falla, retorna VERSION_ERROR
-	//add_new_version(&v)
 	if(add_new_version(&v) != 1)
 		return VERSION_ERROR;
 
@@ -142,17 +130,20 @@ return_code add(char * filename, char * comment) {
 }
 
 int add_new_version(file_version * v) {
+	// Abre el archivo versions.db en modo append 
+	//y verificamos que se haya abierto correctamente
 	FILE * fp;
 	fp = fopen(".versions/versions.db", "ab");
 	
 	if(fp == NULL)
 		return 0;
+	// Escribe la estructura v en el archivo, verifica que se haya escrito correctamente
+	// y cierra el archivo 
 	if( fwrite(v, sizeof(file_version), 1, fp) != 1){
 		fclose(fp);
 		return 0;
 	}
 	fclose(fp);
-	// Adiciona un nuevo registro (estructura) al archivo versions.db
 	return 1;
 }
 
@@ -187,21 +178,13 @@ void list(char * filename) {
 		}
 		//Si el registro corresponde al archivo buscado, imprimir
 		//Muestra los registros cuyo nombre coincide con filename.
-		
-		
-
-		//Comparacion entre cadenas: strcmp
 	}	
 	fclose(fp);
-
-	
-	
 }
 
 char *get_file_hash(char * filename, char * hash) {
 	char *comando;
 	FILE * fp;
-
 	struct stat s;
 
 	//Verificar que el archivo existe y que se puede obtener el hash
@@ -210,6 +193,7 @@ char *get_file_hash(char * filename, char * hash) {
 		return NULL;
 	}
 
+	//Generar el comando para obtener el hash
 	sha256_hash_file_hex(filename, hash);
 
 	return hash;
@@ -259,13 +243,15 @@ int version_exists(char * filename, char * hash) {
 		return 0;
 	
 	file_version * versions;
-	
+
+	// Obtiene el tamaño del archivo	
 	fseek(fp, 0, SEEK_END);
 	long fileSize = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
+	// Obtiene la cantidad de registros en la base de datos
+	//Y reserva memoria para almacenarlos
 	int countVersions = fileSize / sizeof(file_version);
-
 	versions = (file_version *) malloc(fileSize*sizeof(file_version));
 	
 	if(versions == NULL){
@@ -273,6 +259,7 @@ int version_exists(char * filename, char * hash) {
 		return 0;
 	}
 
+	// Lee los registros de la base de datos
 	fread(versions, sizeof(file_version), countVersions, fp);
 	fclose(fp);
 	for(int i = 0; i < countVersions; i++)
@@ -283,18 +270,19 @@ int version_exists(char * filename, char * hash) {
 }
 
 int get(char * filename, int version) {
-
+	//abre la base de datos de versiones .versions/versions.db
+	//y validamos que se haya abierto correctamente
 	file_version r;
-
 	FILE * fp = fopen(".versions/versions.db", "rb");
 
 	if( fp == NULL)
 		return 0;
+	//Leer hasta el fin del archivo verificando si el registro coincide con filename y version
 	int cont = 1;
-
 	while(!feof(fp)){
 		if(fread(&r, sizeof(file_version), 1, fp) != 1)
 			break;
+		//Si el registro corresponde al archivo buscado, lo restauramos
 		if(strcmp(r.filename,filename)==0){
 			if(cont == version){
 				if(!retrieve_file(r.hash, r.filename));
@@ -306,10 +294,7 @@ int get(char * filename, int version) {
 	}
 	fclose(fp);
 
-	//1. Abre la BD y busca el registro r que coincide con filename y version
-	//retrieve_file(r.hash, r.filename)
 }
-
 
 int store_file(char * filename, char * hash) {
 	char dst_filename[PATH_MAX];
