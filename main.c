@@ -25,7 +25,7 @@ void usage();
 
 int main(int argc, char *argv[]) {
 	struct stat s;
-
+   // test testt test
 	//Crear el directorio ".versions/" si no existe
 #ifdef __linux__
 	mkdir(VERSIONS_DIR, 0755);

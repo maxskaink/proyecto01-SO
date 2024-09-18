@@ -174,7 +174,6 @@ void list(char * filename) {
 		}else if(strcmp(r.filename,filename)==0){
 			printf("%d %s %s  %.5s \n", cont, r.filename, r.comment, r.hash);
 			cont = cont + 1;
-			return;
 		}
 		//Si el registro corresponde al archivo buscado, imprimir
 		//Muestra los registros cuyo nombre coincide con filename.
@@ -288,9 +287,8 @@ int get(char * filename, int version) {
 				if(!retrieve_file(r.hash, r.filename));
 					return 1;
 			}
-		}else{
-			cont = cont +1;
-		}		
+			cont++;		
+		}
 	}
 	fclose(fp);
 
